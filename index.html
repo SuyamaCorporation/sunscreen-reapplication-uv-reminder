@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sunscreen Reapplication UV Reminder Timer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.8; }
+      70% { transform: scale(1.15); opacity: 0; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+    }
+    @keyframes countdown-flash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .countdown-flash { animation: countdown-flash 1s ease-in-out infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-sky-400 via-amber-300 to-orange-400 py-8 px-4" style="background-image: linear-gradient(135deg, #0ea5e9 0%, #fbbf24 50%, #f97316 100%);">
+  <div class="max-w-lg mx-auto">
+    <header class="text-center mb-6">
+      <h1 class="text-3xl font-bold text-white drop-shadow mb-1">Sunscreen Reminder</h1>
+      <p class="text-white/80">Reapplication Timer & UV Tracker</p>
+    </header>
+
+    <!-- Setup Panel -->
+    <div id="setup-panel" class="bg-white/95 rounded-3xl shadow-2xl p-6 mb-5">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">Set Up Your Protection</h2>
+      <div class="space-y-4">
+
+        <div>
+          <label for="spf" class="block text-sm font-medium text-gray-600 mb-1">SPF Value</label>
+          <div class="flex gap-2 flex-wrap" role="group" aria-label="Select SPF value">
+            <button class="spf-btn px-4 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" data-spf="15" aria-label="SPF 15">SPF 15</button>
+            <button class="spf-btn px-4 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" data-spf="30" aria-label="SPF 30">SPF 30</button>
+            <button class="spf-btn px-4 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" data-spf="50" aria-label="SPF 50">SPF 50</button>
+            <button class="spf-btn px-4 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" data-spf="100" aria-label="SPF 100+">SPF 100+</button>
+          </div>
+        </div>
+
+        <div>
+          <label for="activity" class="block text-sm font-medium text-gray-600 mb-1">Activity Type</label>
+          <select id="activity" class="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400" aria-label="Select activity type">
+            <option value="indoor">Indoor / Low Exposure</option>
+            <option value="outdoor" selected>Outdoor / Normal Activity</option>
+            <option value="sweating">Vigorous Exercise / Sweating</option>
+            <option value="swimming">Swimming / Water Activity</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="uv-index" class="block text-sm font-medium text-gray-600 mb-1">UV Index <span class="text-gray-400 font-normal">(0–11+)</span></label>
+          <div class="flex items-center gap-3">
+            <input type="range" id="uv-index" min="0" max="11" step="1" value="5" class="flex-1 accent-amber-500" aria-label="UV index from 0 to 11" aria-valuemin="0" aria-valuemax="11" aria-valuenow="5" />
+            <span id="uv-display" class="w-16 text-center font-bold text-lg rounded-xl py-1 bg-amber-100 text-amber-700">5</span>
+          </div>
+          <div id="uv-label" class="text-xs text-center mt-1 text-amber-700"></div>
+        </div>
+
+        <div>
+          <label for="apply-time" class="block text-sm font-medium text-gray-600 mb-1">Last Applied At</label>
+          <input type="time" id="apply-time" class="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400" aria-label="Time sunscreen was last applied" />
+        </div>
+
+      </div>
+
+      <button id="start-btn" class="mt-6 w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-2xl transition-colors duration-200 text-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 shadow-lg" aria-label="Start reapplication timer">
+        Start Timer
+      </button>
+    </div>
+
+    <!-- Timer Panel -->
+    <div id="timer-panel" class="hidden">
+      <div id="timer-card" class="bg-white/95 rounded-3xl shadow-2xl p-6 mb-5 text-center relative overflow-hidden">
+        <div id="urgency-bg" class="absolute inset-0 opacity-10 rounded-3xl"></div>
+
+        <p id="timer-status-label" class="text-sm uppercase tracking-widest font-semibold text-gray-500 mb-2"></p>
+
+        <div class="relative inline-flex items-center justify-center my-4">
+          <div id="pulse-outer" class="absolute w-40 h-40 rounded-full bg-amber-400 pulse-ring opacity-0"></div>
+          <div class="w-36 h-36 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-xl">
+            <div>
+              <p id="countdown-display" class="text-4xl font-bold text-white" aria-live="polite" aria-atomic="true"></p>
+              <p class="text-xs text-white/70">remaining</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <div class="flex justify-between text-xs text-gray-400 mb-1">
+            <span>Applied</span>
+            <span id="reapply-time-label"></span>
+          </div>
+          <div class="bg-gray-100 rounded-full h-3">
+            <div id="progress-bar" class="h-3 rounded-full bg-gradient-to-r from-green-400 to-amber-400 transition-all duration-1000" style="width:0%" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+          </div>
+        </div>
+
+        <div id="recommendation-box" class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-sm text-amber-800 text-left"></div>
+
+        <div class="flex gap-3">
+          <button id="reapply-btn" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 shadow" aria-label="Log that sunscreen has been reapplied now">
+            Applied Now!
+          </button>
+          <button id="edit-btn" class="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Edit settings">
+            Edit
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white/95 rounded-3xl shadow-2xl p-6 mb-5">
+        <h3 class="text-base font-semibold text-gray-700 mb-3">Reapplication Log</h3>
+        <div id="log-list" class="space-y-1 max-h-48 overflow-y-auto" aria-label="Reapplication history" aria-live="polite"></div>
+        <p id="log-empty" class="text-sm text-gray-400">No applications logged yet.</p>
+        <div class="mt-3 flex justify-between text-sm">
+          <span id="log-count" class="text-gray-500"></span>
+          <button id="clear-log-btn" class="text-red-400 hover:text-red-600 text-xs focus:outline-none focus:underline" aria-label="Clear reapplication log">Clear log</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    (function() {
+      const uvDescriptions = ['None (0)', 'Low (1)', 'Low (2)', 'Moderate (3)', 'Moderate (4)', 'Moderate (5)', 'High (6)', 'High (7)', 'Very High (8)', 'Very High (9)', 'Very High (10)', 'Extreme (11+)'];
+      const uvColors = ['text-gray-500', 'text-green-600', 'text-green-600', 'text-yellow-600', 'text-yellow-600', 'text-yellow-600', 'text-orange-500', 'text-orange-500', 'text-red-500', 'text-red-500', 'text-red-500', 'text-purple-600'];
+
+      let selectedSPF = 30;
+      let intervalMinutes = 120;
+      let lastApplied = null;
+      let timerHandle = null;
+      let log = [];
+      let audioCtx = null;
+
+      try {
+        const saved = JSON.parse(localStorage.getItem('sunscreen_state') || 'null');
+        if (saved) {
+          log = saved.log || [];
+          if (saved.lastApplied) lastApplied = saved.lastApplied;
+        }
+      } catch (e) {}
+
+      // UV Index slider
+      const uvSlider = document.getElementById('uv-index');
+      function updateUVDisplay() {
+        const val = parseInt(uvSlider.value);
+        const display = document.getElementById('uv-display');
+        display.textContent = val;
+        display.className = 'w-16 text-center font-bold text-lg rounded-xl py-1 ' +
+          (val <= 2 ? 'bg-green-100 text-green-700' : val <= 5 ? 'bg-yellow-100 text-yellow-700' : val <= 7 ? 'bg-orange-100 text-orange-700' : val <= 10 ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700');
+        document.getElementById('uv-label').textContent = uvDescriptions[Math.min(val, 11)] + ' UV';
+        document.getElementById('uv-label').className = 'text-xs text-center mt-1 ' + uvColors[Math.min(val, 11)];
+        uvSlider.setAttribute('aria-valuenow', val);
+      }
+      uvSlider.addEventListener('input', updateUVDisplay);
+      updateUVDisplay();
+
+      // SPF buttons
+      document.querySelectorAll('.spf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.spf-btn').forEach(b => {
+            b.className = 'spf-btn px-4 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-gray-600';
+          });
+          btn.className = 'spf-btn px-4 py-2 rounded-xl border-2 border-amber-500 bg-amber-50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 text-amber-700';
+          selectedSPF = parseInt(btn.dataset.spf);
+        });
+        if (parseInt(btn.dataset.spf) === 30) btn.click();
+      });
+
+      // Default apply time to now
+      function nowTime() {
+        const now = new Date();
+        return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+      }
+      document.getElementById('apply-time').value = nowTime();
+
+      function calcInterval(spf, activity, uvIndex) {
+        // Base: SPF provides ~ SPF * 10 minutes of protection from MED baseline
+        // But practical reapplication is ~2h regardless of SPF for outdoor activities
+        let base = Math.min(spf * 2, 120); // cap at 120 min
+        const activityMods = { indoor: 1.5, outdoor: 1.0, sweating: 0.5, swimming: 0.5 };
+        let interval = base * activityMods[activity];
+        // UV urgency reduction
+        if (uvIndex >= 11) interval *= 0.6;
+        else if (uvIndex >= 8) interval *= 0.7;
+        else if (uvIndex >= 6) interval *= 0.85;
+        else if (uvIndex <= 2) interval *= 1.3;
+        return Math.max(20, Math.round(interval));
+      }
+
+      document.getElementById('start-btn').addEventListener('click', () => {
+        const activity = document.getElementById('activity').value;
+        const uvIndex = parseInt(uvSlider.value);
+        const applyTimeVal = document.getElementById('apply-time').value;
+
+        intervalMinutes = calcInterval(selectedSPF, activity, uvIndex);
+
+        const [h, m] = applyTimeVal.split(':').map(Number);
+        const now = new Date();
+        lastApplied = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0).getTime();
+
+        logApplication(lastApplied);
+
+        document.getElementById('setup-panel').classList.add('hidden');
+        document.getElementById('timer-panel').classList.remove('hidden');
+
+        startTimer(uvIndex, activity);
+        saveState();
+      });
+
+      document.getElementById('reapply-btn').addEventListener('click', () => {
+        lastApplied = Date.now();
+        logApplication(lastApplied);
+
+        const applyTime = document.getElementById('apply-time');
+        const now = new Date(lastApplied);
+        applyTime.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+        playAlert(true);
+        startTimer(parseInt(uvSlider.value), document.getElementById('activity').value);
+        saveState();
+      });
+
+      document.getElementById('edit-btn').addEventListener('click', () => {
+        document.getElementById('timer-panel').classList.add('hidden');
+        document.getElementById('setup-panel').classList.remove('hidden');
+        if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+      });
+
+      document.getElementById('clear-log-btn').addEventListener('click', () => {
+        log = [];
+        saveState();
+        renderLog();
+      });
+
+      function startTimer(uvIndex, activity) {
+        if (timerHandle) clearInterval(timerHandle);
+        updateTimerDisplay(uvIndex);
+        timerHandle = setInterval(() => updateTimerDisplay(uvIndex), 1000);
+      }
+
+      function formatTime(ms) {
+        if (ms <= 0) return '00:00';
+        const totalSec = Math.floor(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return min.toString().padStart(2, '0') + ':' + sec.toString().padStart(2, '0');
+      }
+
+      function updateTimerDisplay(uvIndex) {
+        if (!lastApplied) return;
+        const now = Date.now();
+        const elapsed = now - lastApplied;
+        const totalMs = intervalMinutes * 60 * 1000;
+        const remaining = totalMs - elapsed;
+        const progress = Math.min(100, (elapsed / totalMs) * 100);
+
+        const countdown = document.getElementById('countdown-display');
+        const progressBar = document.getElementById('progress-bar');
+        const statusLabel = document.getElementById('timer-status-label');
+        const pulseOuter = document.getElementById('pulse-outer');
+        const urgencyBg = document.getElementById('urgency-bg');
+
+        const reapplyTime = new Date(lastApplied + totalMs);
+        document.getElementById('reapply-time-label').textContent = 'Reapply by ' + reapplyTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        progressBar.style.width = progress + '%';
+        progressBar.setAttribute('aria-valuenow', Math.round(progress));
+
+        const recBox = document.getElementById('recommendation-box');
+        recBox.textContent = '';
+
+        if (remaining <= 0) {
+          countdown.textContent = 'NOW!';
+          countdown.className = 'text-4xl font-bold text-white countdown-flash';
+          statusLabel.textContent = 'Reapply Now!';
+          progressBar.className = 'h-3 rounded-full bg-red-500 transition-all duration-1000';
+          urgencyBg.className = 'absolute inset-0 opacity-10 rounded-3xl bg-red-500';
+          pulseOuter.className = 'absolute w-40 h-40 rounded-full bg-red-400 pulse-ring';
+
+          if (!window._alertedThisSession) {
+            window._alertedThisSession = true;
+            playAlert(false);
+          }
+
+          const rec = document.createElement('p');
+          rec.textContent = 'Time to reapply! Apply a generous amount to all exposed skin and work it in evenly.';
+          recBox.appendChild(rec);
+
+        } else {
+          window._alertedThisSession = false;
+          countdown.textContent = formatTime(remaining);
+          countdown.className = 'text-4xl font-bold text-white';
+
+          const pct = progress;
+          if (pct < 50) {
+            statusLabel.textContent = 'Protected';
+            progressBar.className = 'h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-1000';
+            urgencyBg.className = 'absolute inset-0 opacity-10 rounded-3xl bg-green-400';
+            pulseOuter.className = 'absolute w-40 h-40 rounded-full opacity-0';
+          } else if (pct < 80) {
+            statusLabel.textContent = 'Protection Fading';
+            progressBar.className = 'h-3 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-1000';
+            urgencyBg.className = 'absolute inset-0 opacity-10 rounded-3xl bg-yellow-400';
+            pulseOuter.className = 'absolute w-40 h-40 rounded-full opacity-0';
+          } else {
+            statusLabel.textContent = 'Reapply Soon';
+            progressBar.className = 'h-3 rounded-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-1000';
+            urgencyBg.className = 'absolute inset-0 opacity-10 rounded-3xl bg-orange-400';
+            pulseOuter.className = 'absolute w-40 h-40 rounded-full bg-orange-400 pulse-ring';
+          }
+
+          const tips = [];
+          if (uvIndex >= 8) tips.push('Very high UV — wear protective clothing and seek shade when possible.');
+          if (uvIndex >= 11) tips.push('Extreme UV index! Minimize direct sun exposure and reapply every 20–30 min if outdoors.');
+          const activity = document.getElementById('activity').value;
+          if (activity === 'swimming') tips.push('Water-resistant formulas last 40–80 min — reapply immediately after towel drying.');
+          if (activity === 'sweating') tips.push('Heavy sweating reduces effectiveness significantly. Reapply earlier if sweating heavily.');
+          const minLeft = Math.ceil(remaining / 60000);
+          if (minLeft <= 10 && minLeft > 0) tips.push(minLeft + ' minutes until reapplication. Start wrapping up activities to find shade.');
+          if (tips.length === 0) tips.push('SPF ' + selectedSPF + ' provides good protection. Reapply in ' + Math.ceil(remaining / 60000) + ' min.');
+
+          tips.forEach(t => {
+            const p = document.createElement('p');
+            p.textContent = t;
+            recBox.appendChild(p);
+          });
+        }
+
+        renderLog();
+      }
+
+      function logApplication(ts) {
+        const time = new Date(ts);
+        const entry = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        log.unshift({ time: entry, ts });
+        if (log.length > 20) log.pop();
+        renderLog();
+      }
+
+      function renderLog() {
+        const list = document.getElementById('log-list');
+        const empty = document.getElementById('log-empty');
+        const count = document.getElementById('log-count');
+        list.textContent = '';
+        if (log.length === 0) {
+          empty.classList.remove('hidden');
+          count.textContent = '';
+          return;
+        }
+        empty.classList.add('hidden');
+        count.textContent = log.length + ' application' + (log.length !== 1 ? 's' : '') + ' logged today';
+        log.forEach((entry, i) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0';
+          const dot = document.createElement('span');
+          dot.className = 'w-2 h-2 rounded-full ' + (i === 0 ? 'bg-amber-500' : 'bg-gray-300');
+          const timeEl = document.createElement('span');
+          timeEl.className = 'text-sm font-medium text-gray-700';
+          timeEl.textContent = entry.time;
+          const badge = document.createElement('span');
+          badge.className = 'text-xs px-2 py-0.5 rounded-full ' + (i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500');
+          badge.textContent = i === 0 ? 'Latest' : '#' + (i + 1);
+          row.appendChild(dot);
+          row.appendChild(timeEl);
+          row.appendChild(badge);
+          list.appendChild(row);
+        });
+      }
+
+      function playAlert(gentle) {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = audioCtx;
+          const playNote = (freq, start, duration, gain) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + start);
+            gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + start + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + duration);
+          };
+          if (gentle) {
+            playNote(523, 0, 0.2, 0.3);   // C5
+            playNote(659, 0.25, 0.2, 0.3); // E5
+          } else {
+            playNote(880, 0, 0.2, 0.5);   // A5
+            playNote(880, 0.25, 0.2, 0.5);
+            playNote(1047, 0.5, 0.4, 0.5); // C6
+          }
+        } catch (e) {}
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem('sunscreen_state', JSON.stringify({ log, lastApplied, intervalMinutes }));
+        } catch (e) {}
+      }
+
+      renderLog();
+
+      // Restore if timer was active
+      try {
+        const saved = JSON.parse(localStorage.getItem('sunscreen_state') || 'null');
+        if (saved && saved.lastApplied && saved.intervalMinutes) {
+          const elapsed = Date.now() - saved.lastApplied;
+          if (elapsed < saved.intervalMinutes * 60 * 1000 * 2) {
+            lastApplied = saved.lastApplied;
+            intervalMinutes = saved.intervalMinutes;
+            log = saved.log || [];
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
